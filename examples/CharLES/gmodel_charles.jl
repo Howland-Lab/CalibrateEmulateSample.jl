@@ -21,8 +21,6 @@ mutable struct Settings
     statistics::Int64
     # Directory for outputs
     scratch_dir::String
-    # Directory for inputs
-    case_dir::String
     # Vertical grid points at which we obtain statistics
     points_mask::Vector{Int64}
 
@@ -64,7 +62,7 @@ end
 
 
 # function for making folders for an experiment beforehand (WORKS)
-function make_folders(case_dir, scratch_dir, N_ens, N_iter)
+function make_folders(scratch_dir, N_ens, N_iter)
     # Making all folders for data output
     for i in 1:N_iter
         run(`mkdir $scratch_dir/$i`);
@@ -108,12 +106,12 @@ function make_changes_to_inputfiles(params::Array{FT, 2}, settings::Settings, it
     # Make into a loop
     for i in 1:size(params,2)
         # Copy input files and rename to be used
-        case_dir = settings.case_dir;
-        inputfile_name = "charles.in";
+        case_dir = settings.scratch_dir;
+        inputfile_name = "input.in";
         inputfile_path = string(case_dir,"/",iter,"/",i);
         inputfile = joinpath(inputfile_path, inputfile_name);
         # make copies of input files
-        run(`cp /home/ctrsp-2024/youngin/Charles/runs/charles_template.in $inputfile`); 
+        run(`cp /home/ctrsp-2024/mjchan/inputfiles/charles.in $inputfile`); 
 
         # Implement settings to primary and precursor
         resultsdir_string = string("PROBE NAME=\"", settings.scratch_dir, "/", iter, "/", i,  "  INTERVAL=20000 GEOM=FILE ./ABL_points.txt VARS= comp(u,0) comp(u,1) comp(u,2) comp(avg(u),0) comp(avg(u),1) comp(avg(u),2) comp(rms(u),0) comp(rms(u),1) comp(rms(u),2) comp(rey(u),0) comp(rey(u),1) comp(rey(u),2) p avg(p) rms(p) x_cv[0] x_cv[1] x_cv[2]");
@@ -126,7 +124,7 @@ function make_changes_to_inputfiles(params::Array{FT, 2}, settings::Settings, it
         # Modify bash script
         bashfile_name = string("Run",@sprintf("%2.2i", i),".sh");
         bashfile = joinpath(inputfile_path, bashfile_name);
-        run(`cp /home/ctrsp-2024/youngin/Charles/template.sh $bashfile`);
+        run(`cp /home/ctrsp-2024/mjchan/inputfiles/charlesrun.sbatch $bashfile`);
         # Only need to change directory of bash file
         problemdir_string = string("export problemDir=\"$inputfile_path\"");
         run(`sed -i -E "s+export problemDir=\".*+$problemdir_string+" $bashfile`);
@@ -147,7 +145,7 @@ end
 # Function to run a Python script and capture its output
 function run_python_script(script_path, val1, val2, val3)
     # Run using the specific virtual environment
-    output = read(`/home/ctrsp-2024/youngin/miniconda3/envs/pyenv/bin/python $script_path $val1 $val2 $val3`, String)
+    output = read(`/home/ctrsp-2024/mjchan/miniconda3/envs/myenv/bin/python $script_path $val1 $val2 $val3`, String)
     return 0;
 end
 
@@ -155,9 +153,9 @@ end
 function create_bash_for_next_iteration(job_ids_str, iter, N_ens);
     # Make bash script
     bashfile_name = string("calibrate_next_step.sh");
-    bashfile_path = "/home/ctrsp-2024/youngin/CalibrateEmulateSample.jl/examples/PadeOps/runs";
+    bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs";
     bashfile = joinpath(bashfile_path, bashfile_name);
-    run(`cp /home/ctrsp-2024/youngin/CalibrateEmulateSample.jl/examples/PadeOps/runs/automate_calibrate_iterate.sh $bashfile`);
+    run(`cp /home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs/automate_calibrate_iterate.sh $bashfile`);
 
     # Run bash script
     run(`sbatch $bashfile $job_ids_str $iter $N_ens`);

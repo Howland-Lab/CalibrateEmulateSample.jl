@@ -142,10 +142,9 @@ data_names = ["y0"]
 ### e.g., time averaging window, start time, end time, etc.
 ###
 statistics = 1;
-scratch_dir = "/home/ctrsp-2024/youngin/Charles/data";      # Has to be in the PadeOps directory
-case_dir = "/home/ctrsp-2024/youngin/Charles/runs";   # Has to be in the PadeOps directory
+scratch_dir = "/home/ctrsp-2024/mjchan/charles_data";      # Has to be in the PadeOps directory
 points_mask = collect(1:32);
-gmodel_settings = gmodel.Settings(statistics, scratch_dir, case_dir, points_mask);
+gmodel_settings = gmodel.Settings(statistics, scratch_dir, points_mask);
 
 ###
 ### Choose observational data and create internal variability covariance matrix
@@ -196,7 +195,7 @@ constrain_method = "log";
 N_ens = 20;             # number of ensemble members
 N_iter = 5;             # number of EKI iterations
 
-gmodel.make_folders(case_dir, scratch_dir, N_ens, N_iter);
+gmodel.make_folders(scratch_dir, N_ens, N_iter);
 
 # initial parameters: N_params x N_ens
 initial_params = EKP.construct_initial_ensemble(rng, priors, N_ens)

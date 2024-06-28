@@ -70,13 +70,13 @@ iteration = args.iteration
 
 
 # Base directory path for the data (will need to rewrite directory here)
-base_dir = r'/home/ctrsp-2024/youngin/PadeOps/data/half_channel_concurrent/padeops_runs'
+base_dir = r'/home/ctrsp-2024/mjchan/charles_data'
 restart_idx = 0
 start_idx = 3
 end_idx = 5
 
 # Point cloud (need to specify this)
-pcloud_fname = r'C:\Users\miles\Documents\out\summerproject\point_cloud.txt'
+pcloud_fname = r'/home/ctrsp-2024/mjchan/inputfiles/point_cloud.txt'
 
 # Initialize lists to store cumulative results
 Ubar_list = []

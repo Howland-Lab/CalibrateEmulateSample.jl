@@ -181,10 +181,9 @@ if iteration < N_iter
     # Run ensemble of forward models (will need to change with Jianyu)
     println("Now running ensemble of forward model runs.");
     statistics = 1;
-    scratch_dir = "/home/ctrsp-2024/youngin/PadeOps/data/half_channel_concurrent/padeops_runs";      # Has to be in the PadeOps directory
-    case_dir = "/home/ctrsp-2024/youngin/PadeOps/problems/incompressible/half_channel_concurrent_files/padeops_runs";   # Has to be in the PadeOps directory
+    scratch_dir = "/home/ctrsp-2024/mjchan/charles_data";      # Has to be in the PadeOps directory
     points_mask = collect(1:32);
-    gmodel_settings = gmodel.Settings(statistics, scratch_dir, case_dir, points_mask);
+    gmodel_settings = gmodel.Settings(statistics, scratch_dir, points_mask);
     g_ens = gmodel.run_G_ensemble(new_physical_params, gmodel_settings, iteration+1);
         
     save(
