@@ -25,7 +25,7 @@ using CalibrateEmulateSample.ParameterDistributions
 using CalibrateEmulateSample.DataContainers
 using CalibrateEmulateSample.Observations
 const EKP = CalibrateEmulateSample.EnsembleKalmanProcesses
-const PD = EKP.ParameterDistributions 
+const PD = EKP.ParameterDistributions
 # Often useful modules
 using Statistics
 using Printf
@@ -97,16 +97,18 @@ inverse_log_transformation(x) = exp.(x);
 
 
 # Check if enough arguments are passed
-if length(ARGS) < 2
+if length(ARGS) < 3
     println("Please provide the required inputs.");
 else
     # Convert the first argument to an integer
     iteration = parse(Int, ARGS[1])
     N_ens = parse(Int, ARGS[2])
+    avg = ARGS[3]
 
     # Print the received arguments
     println("Received iteration number: $iteration");
     println("Received ensemble size number: $N_ens");
+    println("Received averaging parameter: $avg");
 end
 
 
@@ -135,18 +137,25 @@ truth_sample = load(data_file)["truth_sample"]
 truth_params_constrained = load(data_file)["truth_input_constrained"] #true parameters in constrained space
 
 # Postprocess g_ens (written by Miles Chan)
-g_ens = gmodel.postprocess(N_ens, statistics, points_mask);
+g_ens = gmodel.postprocess(N_ens, statistics, iteration, avg);
 g_ens_csv = "g_ens_temp.csv";   # this is postprocessed file
-g_ens = CSV.File(g_ens_csv; header=false); g_ens = DataFrame(g_ens); g_ens = Matrix(g_ens); g_ens =g_ens';
+g_ens = CSV.File(g_ens_csv; header=false); g_ens = DataFrame(g_ens); g_ens = Matrix(g_ens); g_ens =g_ens'; 
 
-# Deal with forward model runs we consider 'failed' runs (add conditions as we see fit)
-if any(all(g_ens .== 0, dims=1)) || any(isnan.(g_ens)) || any(.!isfinite.(g_ens))
-    # Change failed runs into NaNs. The SampleSuccGauss method will handle these.
-    g_ens = failed_runs(g_ens, get_u_final(ekiobj));
-end
+println("g_ens: ", g_ens);
 
-# Store data for debugging purposes
+# # Deal with forward model runs we consider 'failed' runs (add conditions as we see fit)
+# if any(all(g_ens .== 0, dims=1)) || any(isnan.(g_ens)) || any(.!isfinite.(g_ens))
+#     # Change failed runs into NaNs. The SampleSuccGauss method will handle these.
+#     g_ens = failed_runs(g_ens, get_u_final(ekiobj));
+# end
+
+# # Store data for debugging purposes
 g_ens_success, params_success = success_run_filter(g_ens, get_u_final(ekiobj)); 
+
+println("size g_ens ", size(g_ens_success));
+println("size params ", size(params_success));
+println("size truth_sample ", size(truth_sample));
+
 data_err = mean((truth_sample - mean(g_ens_success, dims=2)).^2);
 
 if constrain == true
@@ -169,6 +178,10 @@ if !isnothing(terminated)
     final_iter = iteration # final update was previous iteration
 end
 
+println("Parameters before update: ", params_success);
+println("Physical parameters before update: ", physical_params_success);
+
+println("Parameters after update: ", get_u_final(ekiobj));
 
 if iteration < N_iter
     if constrain == true
@@ -177,13 +190,22 @@ if iteration < N_iter
         new_physical_params = get_u_final(ekiobj);
     end
 
+    println("Physical parameters after update: ", new_physical_params);
 
     # Run ensemble of forward models (will need to change with Jianyu)
     println("Now running ensemble of forward model runs.");
     statistics = 1;
-    scratch_dir = "/home/ctrsp-2024/mjchan/charles_data";      # Has to be in the PadeOps directory
+    if avg == "t"
+        scratch_dir = "/home/ctrsp-2024/mjchan/charles_data_t";      # Has to be in the PadeOps directory
+    elseif avg == "txz"
+        scratch_dir = "/home/ctrsp-2024/mjchan/charles_data_txz";
+    elseif avg == "tz"
+        scratch_dir = "/home/ctrsp-2024/mjchan/charles_data_tz";
+    elseif avg == "txz2"
+        scratch_dir = "/home/ctrsp-2024/mjchan/charles_data_txz2";
+    end
     points_mask = collect(1:32);
-    gmodel_settings = gmodel.Settings(statistics, scratch_dir, points_mask);
+    gmodel_settings = gmodel.Settings(statistics, scratch_dir, points_mask, avg);
     g_ens = gmodel.run_G_ensemble(new_physical_params, gmodel_settings, iteration+1);
         
     save(
@@ -204,7 +226,7 @@ else
     println("True parameters: ")
     println(truth_params_constrained)
     println("\nEKI results:")
-    println(EKP.get_ϕ_mean_final(priors, ekiobj))
+    println(get_u_final(ekiobj))
 
     # the final ensemble of updated parameters
     if constrain == true
