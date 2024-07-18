@@ -63,20 +63,27 @@ parser = argparse.ArgumentParser(description='Process some values.')
 parser.add_argument('N_ens', type=int, help='First integer value')
 parser.add_argument('statistics', type=int, help='Second integer value')
 parser.add_argument('iteration', type=int, help='Third integer value')
+parser.add_argument('avg',type=str, help='String value')
 args = parser.parse_args()
 N_ens = args.N_ens
 statistics = args.statistics
 iteration = args.iteration
-
+avg = args.avg
 
 # Base directory path for the data (will need to rewrite directory here)
-base_dir = r'/home/ctrsp-2024/mjchan/charles_data'
+if avg == "t":
+    base_dir = r'/home/ctrsp-2024/mjchan/joint_charles_data_t'
+elif avg == "txz":
+    base_dir = r'/home/ctrsp-2024/mjchan/joint_charles_data_txz'
+elif avg == "tz":
+    base_dir = r'/home/ctrsp-2024/mjchan/joint_charles_data_tz'
+
 restart_idx = 0
 start_idx = 3
 end_idx = 5
 
 # Point cloud (need to specify this)
-pcloud_fname = r'/home/ctrsp-2024/mjchan/inputfiles/point_cloud.txt'
+pcloud_fname = r'/home/ctrsp-2024/mjchan/inputfiles_newwm/ABL_points.txt'
 
 # Initialize lists to store cumulative results
 Ubar_list = []
@@ -85,17 +92,49 @@ Ubar_list = []
 for run_num in range(1, N_ens+1):
     print(run_num)
     budget_dir = f'{base_dir}/{iteration}/{run_num}'
-    # budget_dir = r"C:/Users/miles/Documents/out/summerproject/probesABL"
     input_fname = f'{budget_dir}/ABLpoints.COMP(AVG(U),0)'
     print(input_fname)
     data_out, t, tstep, x, y, z, _  = read_data(input_fname, pcloud_fname)
 
-    U_tavg = (data_out[:,:,:,end_idx] * t[end_idx] - data_out[:,:,:,start_idx] * t[start_idx]) / (t[end_idx] - t[start_idx])
-    Ubar = np.mean(U_tavg, axis=(0,2))
+    # U_tavg = (data_out[:,:,:,end_idx] * t[end_idx] - data_out[:,:,:,start_idx] * t[start_idx]) / (t[end_idx] - t[start_idx])
+    if avg == "t":
+        U_val = data_out[48, :, 11]
+        U_val = np.squeeze(U_val)
+        exclude_indices = [0, 1, 8, 10, 12, 19]
+        mask = np.ones(U_val.shape[0], dtype=bool)
+        mask[exclude_indices] = False
+        Ubar = U_val[mask]
+    elif avg == "txz":
+        U_val = data_out[24:72, :, :]
+        U_val = np.squeeze(np.mean(U_val, axis=(0,2)))
+        exclude_indices = [0, 1, 8, 10, 12, 19]
+        mask = np.ones(U_val.shape[0], dtype=bool)
+        mask[exclude_indices] = False
+        Ubar = U_val[mask]
+    elif avg == "tz":
+        U_val = np.squeeze(data_out[25, :, :])
+        U_val = np.squeeze(np.mean(U_val, axis=1))
+        exclude_indices = [0, 1, 8, 10, 12, 19]
+        mask = np.ones(U_val.shape[0], dtype=bool)
+        mask[exclude_indices] = False
+        Ubar = U_val[mask]
+    elif avg == "txz2":
+        U_val = data_out[73:121, :, :]
+        U_val = np.squeeze(np.mean(U_val, axis=(0,2)))
+        exclude_indices = [0, 1, 8, 10, 12, 19]
+        mask = np.ones(U_val.shape[0], dtype=bool)
+        mask[exclude_indices] = False
+        Ubar = U_val[mask]
  
+    else:
+        Ubar = None
+        print("Invalid value for avg.")
+
+    # Normalize by value at top of domain
+    Ubar = Ubar / Ubar[-1]
+
     # Add to cumulative lists
     Ubar_list.append(Ubar)
-
 
 # Convert lists to numpy arrays if desired
 Ubar_array = np.array(Ubar_list)

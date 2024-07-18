@@ -44,8 +44,6 @@ function run_G_ensemble(params::Array{FT, 2}, settings_local::Settings, iter::In
     # PHASE 1: make changes to input files and create bash_scripts array that connects to input files
     bash_scripts = make_changes_to_inputfiles(params, settings_local, iter);
 
-    # @everywhere include("gmodel_charles.jl");
-
     # Container to hold jobids
     jobids = Array{Int64,1}(undef, N_ens);
     println(size(jobids));
@@ -108,28 +106,42 @@ function make_changes_to_inputfiles(params::Array{FT, 2}, settings::Settings, it
     for i in 1:size(params,2)
         # Copy input files and rename to be used
         case_dir = settings.scratch_dir;
+	temp_dir = "/home/ctrsp-2024/mjchan/inputfiles_newwm2"
         inputfile_name = "charles.in";
         inputfile_path = string(case_dir,"/",iter,"/",i);
         inputfile = joinpath(inputfile_path, inputfile_name);
         # make copies of input files
-        run(`cp /home/ctrsp-2024/mjchan/inputfiles/charles.in $inputfile`); 
+        run(`cp $temp_dir/charles.in $inputfile`); 
 
         # Implement settings to primary and precursor
-        resultsdir_string = string("PROBE NAME=", settings.scratch_dir, "/", iter, "/", i, "/ABLpoints  INTERVAL=5300 GEOM=FILE /home/ctrsp-2024/mjchan/inputfiles/ABL_points.txt VARS= comp(u,0) comp(u,1) comp(u,2) comp(avg(u),0) comp(avg(u),1) comp(avg(u),2) comp(rms(u),0) comp(rms(u),1) comp(rms(u),2) comp(rey(u),0) comp(rey(u),1) comp(rey(u),2) p avg(p) rms(p) x_cv[0] x_cv[1] x_cv[2]");
+        resultsdir_string = string("PROBE NAME=", settings.scratch_dir, "/", iter, "/", i, "/ABLpoints  INTERVAL=5300 GEOM=FILE $temp_dir/ABL_points.txt VARS= comp(u,0) comp(u,1) comp(u,2) comp(avg(u),0) comp(avg(u),1) comp(avg(u),2) comp(rms(u),0) comp(rms(u),1) comp(rms(u),2) comp(rey(u),0) comp(rey(u),1) comp(rey(u),2) p avg(p) rms(p) x_cv[0] x_cv[1] x_cv[2]");
         run(`sed -i -E "s+PROBE NAME=.*+$resultsdir_string+" $inputfile`);
 
-        # Assign parameters to input file
-        z02_string = string("BUILDINGS.STL = WM_ALG ROUGHNESS_HEIGHT ", @sprintf("%1.7f",params[:,i][1]));
-        run(`sed -i -E "s+BUILDINGS.STL = WM_ALG ROUGHNESS_HEIGHT .*+$z02_string+" $inputfile`);
+
+        # Assign parameters to the parameters file
+        inputfile_name = "myRoughParams.dat";
+        paramsfile = joinpath(inputfile_path, inputfile_name);
+        println("paramsfile: ", paramsfile);
+	println("temp_dir: ", temp_dir);
+	# make copies of input files
+        run(`cp $temp_dir/myRoughParams.dat $paramsfile`);
+        # Change the z0 and d0 values
+	z0d0string_st = string("0.0             0.0     0.0", @sprintf("%13.6f",params[1,i][1]), @sprintf("%18.6f",params[2,i][1]));
+        z0d0string_en = string("720.0           0.0     0.0", @sprintf("%13.6f",params[1,i][1]), @sprintf("%18.6f",params[2,i][1]));
+	println("z0d0string_st: ", z0d0string_st);
+        println("z0d0string_en: ", z0d0string_en);
+        run(`sed -i -E "s+0.0             0.0     0.0.*+$z0d0string_st+" $paramsfile`);
+        run(`sed -i -E "s+720.0           0.0     0.0.*+$z0d0string_en+" $paramsfile`);
 
         # Modify bash script
         bashfile_name = string("Run",@sprintf("%2.2i", i),".sh");
         bashfile = joinpath(inputfile_path, bashfile_name);
-        run(`cp /home/ctrsp-2024/mjchan/inputfiles/charles_run_template.sbatch $bashfile`);
+        run(`cp $temp_dir/run.slurm $bashfile`);
         # Only need to change directory of bash file
         problemdir_string = string("export problemDir=\"$inputfile_path\"");
         run(`sed -i -E "s+export problemDir=\".*+$problemdir_string+" $bashfile`);
-
+        rundir_string = string("cd $inputfile_path");
+	run(`sed -i -E "s+cd .*+$rundir_string+" $bashfile`);
 
         push!(bash_scripts, bashfile);
     end
@@ -156,13 +168,11 @@ function submit_bash_for_next_iteration(job_ids_str, iter, N_ens, avg);
     # Make bash script
     bashfile_name = string("automate_calibrate_iterate.sh");
     if avg == "t"
-        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs_t";
+        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/joint_runs_t";
     elseif avg == "txz"
-        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs_txz";
+        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/joint_runs_txz";
     elseif avg == "tz"
-        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs_tz";
-    elseif avg == "txz2"
-        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/runs_txz2";
+        bashfile_path = "/home/ctrsp-2024/mjchan/CalibrateEmulateSample.jl/examples/CharLES/joint_runs_tz";
     end
     bashfile = joinpath(bashfile_path, bashfile_name);
 
