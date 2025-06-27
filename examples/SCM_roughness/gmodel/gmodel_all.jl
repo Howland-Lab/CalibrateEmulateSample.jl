@@ -107,16 +107,8 @@ function scm_run(settings_local::Settings, params::Array{FT, 1}) where {FT <: Ab
     settings["sig_e"] = params[8];
 
     # Set ustar to dimensionalize runs
-    if settings_local.avg == "t"
-        settings["ustar"] = 0.4756
-    elseif settings_local.avg == "tz"
-        settings["ustar"] = 0.4756
-    elseif settings_local.avg == "txz"
-        settings["ustar"] = 0.4756
-    end
+    settings["ustar"] = 0.4756
     settings["dPfdx"] = -(settings["ustar"]^2)/settings["Lz"]
-
-
 
     ###
     ### Run simulation 
